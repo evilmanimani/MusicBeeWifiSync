@@ -1,5 +1,7 @@
 package com.getmusicbee.musicbeewifisync;
 
+import static com.getmusicbee.musicbeewifisync.WifiSyncBaseActivity.PermissionsHandler.RW_ACCESS_REQUEST_ONLY;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -18,11 +20,14 @@ import android.provider.DocumentsContract;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AlertDialog;
+
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import androidx.appcompat.app.AppCompatActivity;
+import android.provider.Settings;
 import android.view.MenuItem;
+
 import androidx.annotation.NonNull;
 
 abstract class WifiSyncBaseActivity extends AppCompatActivity {
@@ -84,7 +89,7 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         boolean granted = (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
         switch (requestCode) {
-            case PermissionsHandler.RW_ACCESS_REQUEST_ONLY:
+            case RW_ACCESS_REQUEST_ONLY:
                 if (!granted) {
                     final WifiSyncBaseActivity mainWindow = this;
                     AlertDialog.Builder errorDialog = new AlertDialog.Builder(mainWindow);
@@ -126,7 +131,7 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
             } else {
                 WifiSyncServiceSettings.permissionPathToSdCardMapping.put(WifiSyncServiceSettings.accessPermissionsUri.get().getLastPathSegment(), grantAccessToSdCard.getPath());
                 accessPermissionsGranted = true;
-                getContentResolver().takePersistableUriPermission(WifiSyncServiceSettings.accessPermissionsUri.get(),Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                getContentResolver().takePersistableUriPermission(WifiSyncServiceSettings.accessPermissionsUri.get(), Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 WifiSyncServiceSettings.permissionsUpgraded = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q);
                 onStoragePermissionsApproved();
             }
@@ -171,8 +176,10 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
         static boolean tryGetStorageAccessGrant(Activity context, int deviceStorageIndex, AtomicReference<Uri> storageRootPermissionedUri) {
             //ErrorHandler.logInfo("get grant", "device=" + deviceStorageIndex + ", " + WifiSyncServiceSettings.permissionPathToSdCardMapping.size());
             storageRootPermissionedUri.set(null);
-            if (deviceStorageIndex == StorageCategory.INTERNAL && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q){
+            if (deviceStorageIndex == StorageCategory.INTERNAL && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                 return (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
+            } else if (deviceStorageIndex == StorageCategory.INTERNAL && Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU) {
+                return Environment.isExternalStorageManager();
             } else {
                 File sdCard = FileStorageAccess.getSdCardFromIndex(context, deviceStorageIndex);
                 if (sdCard == null) {
@@ -196,7 +203,7 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
                                 int levels = 0;
                                 for (char c : rootId.toCharArray()) {
                                     if (c == '/') {
-                                        levels ++;
+                                        levels++;
                                     }
                                 }
                                 if (levels < bestPathLevels) {
@@ -217,8 +224,13 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
         }
 
         static void demandInternalStorageAccessPermissions(Activity context) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(context, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, RW_ACCESS_REQUEST_ONLY);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (!Environment.isExternalStorageManager()) {
+                    Intent accessRequestIntent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    context.startActivityForResult(accessRequestIntent, RW_ACCESS_REQUEST_ONLY);
+                }
+            } else if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, RW_ACCESS_REQUEST_ONLY);
             }
         }
 
@@ -228,7 +240,7 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
             } else {
                 boolean internalStorage = (sdCard.getPath().equalsIgnoreCase(Environment.getExternalStorageDirectory().getPath()));
                 if (internalStorage && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                    ActivityCompat.requestPermissions(context, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, RW_ACCESS_REQUEST_AND_START_SYNC);
+                    ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, RW_ACCESS_REQUEST_AND_START_SYNC);
                 } else {
                     StorageManager storageManager = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
                     Intent accessRequestIntent;
