@@ -178,7 +178,7 @@ abstract class WifiSyncBaseActivity extends AppCompatActivity {
             storageRootPermissionedUri.set(null);
             if (deviceStorageIndex == StorageCategory.INTERNAL && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                 return (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
-            } else if (deviceStorageIndex == StorageCategory.INTERNAL && Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU) {
+            } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU) {
                 return Environment.isExternalStorageManager();
             } else {
                 File sdCard = FileStorageAccess.getSdCardFromIndex(context, deviceStorageIndex);
