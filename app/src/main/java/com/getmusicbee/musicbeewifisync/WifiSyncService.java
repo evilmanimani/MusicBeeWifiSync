@@ -17,6 +17,8 @@ import android.os.FileObserver;
 import android.os.IBinder;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.util.Log;
+
 import androidx.core.app.NotificationCompat;
 
 import java.io.BufferedInputStream;
@@ -175,7 +177,7 @@ public class WifiSyncService extends Service {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         Intent stopIntent = new Intent(this, WifiSyncService.class);
         stopIntent.setAction(getString(R.string.actionSyncAbort));
-        PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+        PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_delete, getString(R.string.syncStop), pendingStopIntent);
         builder.addAction(stopAction);
         startForeground(FOREGROUND_ID, builder.build());
